@@ -3,3 +3,4 @@ env/
 files/
 .cache/
 Assignment/Assignment1.ipynb
+.streamlit
