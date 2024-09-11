@@ -1,15 +1,11 @@
-from langchain.document_loaders import AsyncChromiumLoader
-from langchain.document_transformers import Html2TextTransformer
-import streamlit as st
-import asyncio
-import sys
-from langchain.document_loaders import SitemapLoader, text
+from langchain.document_loaders import SitemapLoader
+from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
+import streamlit as st
 
 llm = ChatOpenAI(
     temperature=0.1,
@@ -20,8 +16,11 @@ answers_prompt = ChatPromptTemplate.from_template(
     Using ONLY the following context answer the user's question. If you can't just say you don't know, don't make anything up.
                                                   
     Then, give a score to the answer between 0 and 5.
+
     If the answer answers the user question the score should be high, else it should be low.
+
     Make sure to always include the answer's score even if it's 0.
+
     Context: {context}
                                                   
     Examples:
@@ -35,9 +34,11 @@ answers_prompt = ChatPromptTemplate.from_template(
     Score: 0
                                                   
     Your turn!
+
     Question: {question}
 """
 )
+
 
 def get_answers(inputs):
     docs = inputs["docs"]
@@ -70,14 +71,18 @@ choose_prompt = ChatPromptTemplate.from_messages(
             "system",
             """
             Use ONLY the following pre-existing answers to answer the user's question.
+
             Use the answers that have the highest score (more helpful) and favor the most recent ones.
+
             Cite sources and return the sources of the answers as they are, do not change them.
+
             Answers: {answers}
             """,
         ),
         ("human", "{question}"),
     ]
 )
+
 
 def choose_answer(inputs):
     answers = inputs["answers"]
@@ -102,40 +107,14 @@ def parse_page(soup):
         header.decompose()
     if footer:
         footer.decompose()
-    return(
+    return (
         str(soup.get_text())
         .replace("\n", " ")
         .replace("\xa0", " ")
         .replace("CloseSearch Submit Blog", "")
     )
 
-st.set_page_config(
-    page_title="SiteGPT",
-    page_icon="🖥️",
-)
 
-
-# if "win32" in sys.platform:
-#     # Windows specific event-loop policy & cmd
-#     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-#     cmds = [['C:/Windows/system32/HOSTNAME.EXE']]
-# else:
-#     # Unix default event-loop policy & cmds
-#     cmds = [
-#         ['du', '-sh', '/Users/fredrik/Desktop'],
-#         ['du', '-sh', '/Users/fredrik'],
-#         ['du', '-sh', '/Users/fredrik/Pictures']
-#     ]
-# ------------------------------------------------------
-# Configure logging
-# logging.basicConfig(level=logging.DEBUG)
-
-# # Initialize a UserAgent object
-# ua = UserAgent()
-
-
-# html2text_transformer = Html2TextTransformer()
-# ----------------------------------------
 @st.cache_data(show_spinner="Loading website...")
 def load_website(url):
     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
@@ -149,17 +128,18 @@ def load_website(url):
             r"^(.*\/vectorize\/).*",
             r"^(.*\/ai-gateway\/).*",
         ],
-        parsing_function= parse_page,
+        parsing_function=parse_page,
     )
-    loader.requests_per_second = 1
+    loader.requests_per_second = 2
     docs = loader.load_and_split(text_splitter=splitter)
     vector_store = FAISS.from_documents(docs, OpenAIEmbeddings())
     return vector_store.as_retriever()
 
 
-
-
-
+st.set_page_config(
+    page_title="SiteGPT",
+    page_icon="🖥️",
+)
 
 
 st.markdown(
@@ -176,26 +156,13 @@ st.markdown(
 with st.sidebar:
     url = "https://developers.cloudflare.com/sitemap-0.xml"
 
+
 if url:
-    # loader = AsyncChromiumLoader([url])
-    # docs = loader.load()
-    # transformed = html2text_transformer.transform_documents(docs)
-    # st.write(docs)
-    # -----------------------------------------------------------------
     if ".xml" not in url:
         with st.sidebar:
             st.error("Please write down a Sitemap URL.")
     else:
         retriever = load_website(url)
-
-        # chain = {
-        #     "docs": retriever,
-        #     "question": RunnablePassthrough(),
-        # } | RunnableLambda(get_answers)
-
-        # chain.invoke("What can I do with Cloudflare’s AI Gateway?")
-
-
         query = st.text_input("Ask a question to the website.")
         if query:
             chain = (
