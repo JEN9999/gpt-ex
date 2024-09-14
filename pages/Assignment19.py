@@ -1,11 +1,11 @@
 import streamlit as st
-from openai import OpenAI
+import openai
 import yfinance
 import json
 import re
 from langchain.utilities.duckduckgo_search import DuckDuckGoSearchAPIWrapper
 
-client = OpenAI()
+client = openai.OpenAI()
 
 functions = [
     {
