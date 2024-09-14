@@ -149,6 +149,15 @@ def paint_history():
             message["message"].replace("$", "\$"), message["role"], save=False
         )
 
+def extract_text_from_content(content):
+    if hasattr(content, "text") and hasattr(content.text, "value"):
+        return content.text.value
+    elif isinstance(content, str):
+        return content
+    return str(content)
+
+def format_text(text):
+    return text.replace("\n", "  \n")
 
 
    
@@ -163,16 +172,38 @@ functions_map = {
 
 
 
+def create_run_and_poll():
+
+    client.beta.threads.messages.create(
+        thread_id=st.session_state['thread'].id,
+        role="user",
+        content=query
+    )
+
+    run = client.beta.threads.runs.create_and_poll(
+        thread_id=st.session_state['thread'].id,
+        assistant_id=st.session_state['assistant'].id,
+        instructions="금융 관련 질문에 대해 자세하게 설명하세요."
+    )
+
+    return run
 
 st.set_page_config(page_title="Financial Research AI Agent", page_icon=":chart_with_upwards_trend:")
-st.title("AssistantGPT")
 
 
+paint_history()
+
+
+
+st.title("금융 리서치 AI 에이전트")
+
+
+st.sidebar.link_button("Github", "https://github.com/JEN9999/Assignment2/blob/main/pages/Assignment19.py")
 api_key = st.sidebar.text_input("OpenAI API 키를 입력하세요", type="password")
-if api_key:
-    client.api_key = api_key 
-
+if not api_key:
+    st.error("API 키를 입력해야 합니다.")
 else:
+  
     client.api_key = api_key
 
 
@@ -189,16 +220,18 @@ else:
         thread = client.beta.threads.create()
         st.session_state['thread'] = thread
 
-    query = st.chat_input("AssistantGPT에게 주식 정보를 물어보세요!")
-
 
     paint_history()
+
+
+    query = st.chat_input("AssistantGPT에게 주식 정보를 물어보세요!")  # API 키가 입력된 후에만 질문 입력 가능
+
 
     if query: 
 
         paint_message(query, "user")
 
-   
+
         client.beta.threads.messages.create(
             thread_id=st.session_state['thread'].id,
             role="user",
@@ -212,18 +245,18 @@ else:
             instructions="금융 관련 질문에 대해 답변해주세요."
         )
 
-  
+
         if run.status == 'completed':
-       
+
             messages = client.beta.threads.messages.list(thread_id=st.session_state['thread'].id)
 
             for message in messages:
                 role = "사용자" if message.role == "user" else "어시스턴트"
 
-       
                 content_value = extract_text_from_content(message.content)
-
+         
                 if role == "어시스턴트":
-                    paint_message(content_value, "assistant")
+                    paint_message(content_value, "assistant") 
         else:
             st.write(f"Run 상태: {run.status}")
+
